@@ -1,29 +1,48 @@
-# Name of the workflow
 name: Run Selenium Tests
 
-# When to run it
 on:
   push:
     branches:
-      - main  # Run when code is pushed to the main branch
+      - main
 
-# What to do
 jobs:
   run_tests:
-    runs-on: ubuntu-latest  # Use a fresh Ubuntu computer in the cloud
+    runs-on: ubuntu-latest
     steps:
-      - name: Get my code
-        uses: actions/checkout@v4  # Downloads your code
+      # Step 1: Check out your code
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'  # Use Python 3.9
+          python-version: '3.9'
 
-      - name: Install packages
+      # Step 3: Install a browser (Google Chrome)
+      - name: Install Google Chrome
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt  # Install Selenium, pytest, etc.
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
 
-      - name: Run tests
-        run: pytest  # Run your Selenium tests
+      # Step 4: Install chromedriver
+      - name: Install ChromeDriver
+        run: |
+          CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
+          CHROMEDRIVER_VERSION=$(wget -qO- https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION%%.*})
+          wget -q https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip
+          unzip chromedriver_linux64.zip
+          sudo mv chromedriver /usr/local/bin/
+          sudo chmod +x /usr/local/bin/chromedriver
+
+      # Step 5: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Ensure selenium, pytest, etc., are in requirements.txt
+
+      # Step 6: Run pytest with headless mode
+      - name: Run Pytest tests
+        run: pytest --html=report.html  # Add --html for a report
